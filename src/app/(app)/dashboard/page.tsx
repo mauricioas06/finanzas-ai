@@ -1,23 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, CircleAlert, CircleCheck, Info } from "lucide-react";
-import { CashflowChart, DonutChart, HorizontalBars } from "@/components/charts";
+import { CashflowChart, DonutChart, HorizontalBars, TrendChart } from "@/components/charts";
 import { Stat } from "@/components/stat";
 import { Badge, Card, PageHeader, cn } from "@/components/ui";
+import { getDebtHistory, getDebts, totalDebt } from "@/lib/data/debts";
 import { requireProfile } from "@/lib/data/profile";
 import { financeContext, getAccounts, getCashflow, getCategories, getCategorySpend, getRecurring } from "@/lib/data/finance";
 import { formatDate, greeting } from "@/lib/dates";
 import { buildTodayActions, changePercent, detectExcess } from "@/lib/finance/analysis";
-import { monthLabel, monthRange } from "@/lib/finance/months";
+import { lastMonths, monthLabel, monthRange } from "@/lib/finance/months";
+import { buildUpcomingPayments } from "@/lib/finance/schedule";
 import { formatMXN, money, sum } from "@/lib/money";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 const PENDING: Array<{ label: string; phase: number }> = [
   { label: "Dinero apartado", phase: 4 },
-  { label: "Deudas pendientes", phase: 3 },
-  { label: "Total invertido", phase: 6 },
   { label: "Ahorro acumulado", phase: 4 },
+  { label: "Progreso de metas", phase: 5 },
+  { label: "Total invertido", phase: 6 },
 ];
 
 const ACTION_ICON = { urgente: CircleAlert, aviso: CircleAlert, info: Info } as const;
@@ -26,20 +28,26 @@ const ACTION_TONE = { urgente: "text-negative", aviso: "text-[#f59e0b]", info: "
 export default async function DashboardPage() {
   const profile = await requireProfile();
   const ctx = await financeContext();
-  const [accounts, categories, recurring, flow, spend] = await Promise.all([
-    getAccounts(ctx), getCategories(ctx), getRecurring(ctx), getCashflow(ctx, ctx.currentMonth, 6), getCategorySpend(ctx, ctx.currentMonth, 4),
+  const [accounts, categories, recurring, flow, spend, debts] = await Promise.all([
+    getAccounts(ctx), getCategories(ctx), getRecurring(ctx), getCashflow(ctx, ctx.currentMonth, 6), getCategorySpend(ctx, ctx.currentMonth, 4), getDebts(ctx),
   ]);
 
   const month = ctx.currentMonth;
   const { end } = monthRange(month);
   const available = sum(accounts.map((a) => a.balance));
+  const debtTotal = totalDebt(debts);
+  const netWorth = available.minus(debtTotal);
   const thisFlow = flow[flow.length - 1];
   const prevFlow = flow[flow.length - 2];
   const monthBalance = money(thisFlow.income).minus(thisFlow.expense);
 
-  // Comprometido: gastos recurrentes que aún vencen de hoy al fin de mes.
-  const pendingRecurring = recurring.filter((r) => r.next_due_date && r.next_due_date <= end);
-  const committed = sum(pendingRecurring.map((r) => r.amount));
+  const recurringSchedules = recurring.map((r) => ({ id: r.id, name: r.name, amount: r.amount, frequency: r.frequency, dueDay: r.due_day, nextDueDate: r.next_due_date }));
+  const upcoming = buildUpcomingPayments({ today: ctx.today, debts, recurring: recurringSchedules }, 45);
+  const debtPayments = upcoming.filter((p) => p.kind !== "recurrente");
+
+  // Comprometido: lo que aún hay que pagar de hoy al fin de mes (deudas y recurrentes con monto conocido).
+  const dueThisMonth = upcoming.filter((p) => p.date <= end && p.state !== "pagado" && p.amount);
+  const committed = sum(dueThisMonth.map((p) => p.amount!));
 
   const [m3, m2, m1] = spend.months;
   const current = spend.byMonth.get(month)!;
@@ -56,7 +64,11 @@ export default async function DashboardPage() {
     incomeThisMonth: thisFlow.income,
     recurring: recurring.map((r) => ({ id: r.id, name: r.name, amount: r.amount, nextDueDate: r.next_due_date, isActive: r.is_active })),
     categories: categoryRows,
+    debtPayments,
   });
+
+  const months = lastMonths(month, 6);
+  const debtHistory = debts.length ? await getDebtHistory(ctx, debts, months.map((m) => monthRange(m).end)) : [];
 
   const firstName = profile.fullName?.split(" ")[0];
   const hasFlow = flow.some((f) => money(f.income).gt(0) || money(f.expense).gt(0));
@@ -101,13 +113,19 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Stat label="Dinero total disponible" value={formatMXN(available)} note={`En ${accounts.length} cuenta${accounts.length === 1 ? "" : "s"}`} />
         <Stat label="Dinero comprometido" value={formatMXN(committed)}
-          note={pendingRecurring.length ? `${pendingRecurring.length} gasto${pendingRecurring.length === 1 ? "" : "s"} recurrente${pendingRecurring.length === 1 ? "" : "s"} por pagar este mes` : "Sin recurrentes pendientes este mes. Deudas: Fase 3"} />
+          note={dueThisMonth.length ? `${dueThisMonth.length} pago${dueThisMonth.length === 1 ? "" : "s"} por hacer antes del ${formatDate(end)}` : "Sin pagos pendientes con monto este mes"} />
+        <Stat label="Deudas pendientes" value={formatMXN(debtTotal)} tone={debtTotal.gt(0) ? "negative" : undefined}
+          note={debts.length ? <Link href="/deudas" className="text-brand hover:underline">{debts.length} deuda{debts.length === 1 ? "" : "s"} activa{debts.length === 1 ? "" : "s"}</Link> : "Sin deudas registradas"} />
         <Stat label="Ingresos del mes" value={formatMXN(thisFlow.income)} change={changePercent(thisFlow.income, prevFlow.income)} tone="positive" />
-        <Stat label="Gastos del mes" value={formatMXN(thisFlow.expense)} change={changePercent(thisFlow.expense, prevFlow.expense)} goodWhenUp={false} />
-        <Stat label="Balance del mes" value={formatMXN(monthBalance)} tone={monthBalance.isNegative() ? "negative" : "positive"}
-          note={monthBalance.isNegative() ? "Gastaste más de lo que entró" : "Ingresos menos gastos"} />
-        <Stat label="Patrimonio neto" value={formatMXN(available)} note="Por ahora solo cuentas; restará deudas (F3) y sumará inversiones (F6)" />
+        <Stat label="Gastos del mes" value={formatMXN(thisFlow.expense)} change={changePercent(thisFlow.expense, prevFlow.expense)} goodWhenUp={false}
+          note={money(thisFlow.debtPaid).gt(0) ? `Aparte: ${formatMXN(thisFlow.debtPaid)} en pagos a deudas` : undefined} />
+        <Stat label="Patrimonio neto" value={formatMXN(netWorth)} tone={netWorth.isNegative() ? "negative" : "positive"}
+          note={`Cuentas ${formatMXN(available)} − deudas ${formatMXN(debtTotal)}. Sumará inversiones (F6)`} />
       </div>
+      <p className="mt-2 text-xs text-muted">
+        Balance del mes (ingresos − gastos): <strong className={monthBalance.isNegative() ? "text-negative" : "text-positive"}>{formatMXN(monthBalance)}</strong>.
+        Los pagos a tarjetas y préstamos no cuentan como gasto: el gasto se contó al comprar.
+      </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>
@@ -126,8 +144,15 @@ export default async function DashboardPage() {
             <p className="py-16 text-center text-sm text-muted">Agrega tus cuentas en <Link href="/mi-dinero" className="text-brand hover:underline">Mi dinero</Link> para ver dónde está tu dinero.</p>
           )}
         </Card>
+        {debtHistory.length ? (
+          <Card>
+            <h2 className="mb-1 text-base font-semibold">Evolución de las deudas</h2>
+            <p className="mb-3 text-xs text-muted">Saldo total al cierre de cada mes, desde que registraste cada deuda.</p>
+            <TrendChart label="Saldo total de deudas por mes" name="Deudas" data={debtHistory.map((h, i) => ({ label: monthLabel(months[i], true), value: Number(h.total) }))} />
+          </Card>
+        ) : null}
         {categoryChart.length ? (
-          <Card className="lg:col-span-2">
+          <Card className={debtHistory.length ? "" : "lg:col-span-2"}>
             <h2 className="mb-3 text-base font-semibold">Gastos por categoría · {monthLabel(month)}</h2>
             <HorizontalBars label="Gastos por categoría del mes" data={categoryChart} />
           </Card>

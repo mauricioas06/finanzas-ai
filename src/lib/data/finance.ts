@@ -70,7 +70,7 @@ export async function getMonthTransactions({ supabase, userId }: Ctx, month: str
   const { start, next } = monthRange(month);
   return must("movimientos", await supabase
     .from("transactions")
-    .select("id, amount::text, occurred_on, description, account_id, income_source_id, income_type, category_id, recurring_expense_id")
+    .select("id, amount::text, occurred_on, description, account_id, income_source_id, income_type, category_id, recurring_expense_id, debt_id")
     .eq("user_id", userId)
     .eq("kind", kind)
     .gte("occurred_on", start)
@@ -85,7 +85,7 @@ export async function getCashflow({ supabase, userId }: Ctx, endMonth: string, n
   const months = lastMonths(endMonth, n);
   const rows = must("flujo", await supabase
     .from("v_monthly_cashflow")
-    .select("month, income::text, expense::text")
+    .select("month, income::text, expense::text, debt_paid::text")
     .eq("user_id", userId)
     .gte("month", `${months[0]}-01`)
     .lte("month", `${endMonth}-01`));
@@ -94,6 +94,7 @@ export async function getCashflow({ supabase, userId }: Ctx, endMonth: string, n
     month: m,
     income: byMonth.get(m)?.income ?? "0.00",
     expense: byMonth.get(m)?.expense ?? "0.00",
+    debtPaid: byMonth.get(m)?.debt_paid ?? "0.00",
   }));
 }
 

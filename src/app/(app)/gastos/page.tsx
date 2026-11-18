@@ -7,6 +7,7 @@ import { MonthNav } from "@/components/month-nav";
 import { Stat } from "@/components/stat";
 import { Badge, Card, inputClass, PageHeader } from "@/components/ui";
 import { deleteTransaction } from "@/lib/actions/transactions";
+import { getDebts } from "@/lib/data/debts";
 import { financeContext, getAccounts, getCategories, getCategorySpend, getMonthTransactions, getRecurring } from "@/lib/data/finance";
 import { formatDate } from "@/lib/dates";
 import { budgetStatus, changePercent, detectExcess } from "@/lib/finance/analysis";
@@ -26,9 +27,11 @@ const STATUS_BADGE = {
 
 export default async function GastosPage({ searchParams }: PageProps<"/gastos">) {
   const ctx = await financeContext((await searchParams).mes);
-  const [accounts, categories, recurring, txs, spend] = await Promise.all([
-    getAccounts(ctx), getCategories(ctx), getRecurring(ctx), getMonthTransactions(ctx, ctx.month, "gasto"), getCategorySpend(ctx, ctx.month, 4),
+  const [accounts, categories, recurring, txs, spend, debts] = await Promise.all([
+    getAccounts(ctx), getCategories(ctx), getRecurring(ctx), getMonthTransactions(ctx, ctx.month, "gasto"), getCategorySpend(ctx, ctx.month, 4), getDebts(ctx),
   ]);
+  const cards = debts.filter((d) => d.card);
+  const debtName = new Map(debts.map((d) => [d.id, d.name]));
 
   const [m3, m2, m1, current] = spend.months;
   const thisMonth = spend.byMonth.get(current)!;
@@ -271,7 +274,9 @@ export default async function GastosPage({ searchParams }: PageProps<"/gastos">)
                             {t.recurring_expense_id ? " · recurrente" : ""}
                           </p>
                         </td>
-                        <td className="py-3 text-muted">{t.account_id ? accountName.get(t.account_id) ?? "—" : "—"}</td>
+                        <td className="py-3 text-muted">
+                          {t.account_id ? accountName.get(t.account_id) ?? "—" : t.debt_id ? `Tarjeta ${debtName.get(t.debt_id) ?? ""}`.trim() : "—"}
+                        </td>
                         <td className="num py-3 text-right font-medium">{formatMXN(t.amount)}</td>
                         <td className="px-5 py-3 text-right">
                           <ActionForm action={deleteTransaction} submitLabel="Borrar" pendingLabel="…" variant="danger" inline hideMessages
@@ -303,10 +308,19 @@ export default async function GastosPage({ searchParams }: PageProps<"/gastos">)
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </FormField>
-            <FormField label="¿Con qué cuenta pagaste?" name="accountId" htmlId="exp-account" hint="Si eliges una, se descuenta sola. Pagos con tarjeta de crédito: Fase 3.">
+            <FormField label="¿Con qué pagaste?" name="accountId" htmlId="exp-account" hint="Una cuenta se descuenta sola. Una tarjeta de crédito sube su deuda.">
               <select id="exp-account" name="accountId" defaultValue={accounts[0]?.id ?? ""} className={inputClass}>
                 <option value="">No ligar a una cuenta</option>
-                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({formatMXN(a.balance)})</option>)}
+                {accounts.length ? (
+                  <optgroup label="Cuentas">
+                    {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({formatMXN(a.balance)})</option>)}
+                  </optgroup>
+                ) : null}
+                {cards.length ? (
+                  <optgroup label="Tarjetas de crédito">
+                    {cards.map((c) => <option key={c.id} value={`card:${c.id}`}>{c.name} · {c.institution}</option>)}
+                  </optgroup>
+                ) : null}
               </select>
             </FormField>
             <FormField label="Descripción (opcional)" name="description" htmlId="exp-desc">

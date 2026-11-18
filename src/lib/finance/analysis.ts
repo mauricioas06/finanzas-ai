@@ -70,6 +70,8 @@ export interface TodayInput {
   incomeThisMonth: MoneyInput;
   recurring: Array<{ id: string; name: string; amount: MoneyInput; nextDueDate: string | null; isActive: boolean }>;
   categories: Array<{ id: string; name: string; spent: MoneyInput; budget: MoneyInput | null; excessive: boolean }>;
+  /** Próximos pagos de deudas (de buildUpcomingPayments, solo tarjetas y préstamos). */
+  debtPayments?: Array<{ key: string; title: string; date: string; amount: Decimal | null; minimum: Decimal | null; state: string; estimated: boolean; href: string; note?: string }>;
 }
 
 export interface TodayAction {
@@ -85,6 +87,32 @@ export const RECURRING_LOOKAHEAD_DAYS = 7;
 
 export function buildTodayActions(input: TodayInput): TodayAction[] {
   const actions: TodayAction[] = [];
+
+  for (const p of input.debtPayments ?? []) {
+    if (p.state === "pagado") continue;
+    const days = daysBetween(input.today, p.date);
+    if (p.estimated && p.amount === null) {
+      // El corte ya ocurrió y falta capturar el estado de cuenta.
+      if (p.note?.startsWith("Captura tu estado de cuenta del corte")) {
+        actions.push({
+          id: `estado-${p.key}`, priority: 3, tone: "info", href: p.href,
+          title: `Captura el estado de cuenta de ${p.title}`,
+          detail: p.note ?? "Así se sabe cuánto pagar y cuándo.",
+        });
+      }
+      continue;
+    }
+    if (days > RECURRING_LOOKAHEAD_DAYS) continue;
+    const when = days < 0 ? `Venció hace ${-days} día${days === -1 ? "" : "s"}`
+      : days === 0 ? "Vence hoy" : days === 1 ? "Vence mañana" : `Vence en ${days} días`;
+    const amount = p.amount ? ` Paga ${formatMXN(p.amount)} para no generar intereses.` : "";
+    const min = p.minimum && p.amount && !p.minimum.eq(p.amount) ? ` Mínimo: ${formatMXN(p.minimum)}.` : "";
+    actions.push({
+      id: `deuda-${p.key}`, priority: days <= 3 ? 1 : 2, tone: days <= 1 ? "urgente" : "aviso", href: p.href,
+      title: `Pagar ${p.title}`,
+      detail: `${when} (${p.date.slice(8)}/${p.date.slice(5, 7)}).${p.note === "Pago para no generar intereses" ? amount : p.amount ? ` Monto: ${formatMXN(p.amount)}.` : ""}${min}`,
+    });
+  }
 
   for (const r of input.recurring) {
     if (!r.isActive || !r.nextDueDate) continue;

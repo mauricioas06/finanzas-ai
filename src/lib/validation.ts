@@ -162,8 +162,16 @@ export const expenseSchema = z.object({
   amount: moneyField(),
   occurredOn: dateField,
   categoryId: requiredId,
-  accountId: optionalId,
+  // Campo del formulario "¿Con qué pagaste?": cuenta, tarjeta ("card:<id>") o nada.
+  accountId: z.string().optional(),
   description: shortText(300),
+}).transform((d, ctx) => {
+  const source = paymentSourceField.safeParse(d.accountId);
+  if (!source.success) {
+    ctx.addIssue({ code: "custom", path: ["accountId"], message: "Opción inválida." });
+    return z.NEVER;
+  }
+  return { ...d, accountId: source.data.accountId, cardDebtId: source.data.cardDebtId };
 });
 
 export const categorySchema = z.object({
@@ -213,6 +221,164 @@ export const payRecurringSchema = z.object({
 });
 
 export const idSchema = z.object({ id: requiredId });
+
+// ---------------------------------------------------------------------
+// Fase 3: deudas, tarjetas y estados de cuenta.
+// ---------------------------------------------------------------------
+export const DEBT_TYPES = [
+  "tarjeta_credito", "prestamo_personal", "financiamiento", "deuda_personal", "credito_automotriz", "hipotecario", "otra",
+] as const;
+
+/** Campo opcional de dinero: "" → null. */
+const optionalMoney = z
+  .string()
+  .optional()
+  .transform((v, ctx) => {
+    if (!v || !v.trim()) return null;
+    const parsed = moneyField({ allowZero: true }).safeParse(v);
+    if (!parsed.success) {
+      ctx.addIssue({ code: "custom", message: parsed.error.issues[0].message });
+      return z.NEVER;
+    }
+    return parsed.data;
+  });
+
+/** Tasa anual en porcentaje, de 0 a 1000 con hasta 4 decimales. "" → null. */
+const percentField = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v, ctx) => {
+    if (!v) return null;
+    const clean = v.replace("%", "").trim();
+    if (!/^\d{1,4}(\.\d{1,4})?$/.test(clean) || Number(clean) > 1000) {
+      ctx.addIssue({ code: "custom", message: "Escribe la tasa anual en %, por ejemplo 54.5" });
+      return z.NEVER;
+    }
+    return clean;
+  });
+
+const dayField = (msg: string) =>
+  z.string().trim().regex(/^([1-9]|[12]\d|3[01])$/, msg).transform(Number);
+
+const optionalDay = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v, ctx) => {
+    if (!v) return null;
+    if (!/^([1-9]|[12]\d|3[01])$/.test(v)) {
+      ctx.addIssue({ code: "custom", message: "Día del 1 al 31." });
+      return z.NEVER;
+    }
+    return Number(v);
+  });
+
+export const debtSchema = z
+  .object({
+    debtType: z.enum(DEBT_TYPES, { error: "Elige el tipo de deuda." }),
+    institution: name(80),
+    name: name(80),
+    currentBalance: moneyField({ allowZero: true }),
+    annualRate: percentField,
+    minimumPayment: optionalMoney,
+    fixedPayment: optionalMoney,
+    paymentDueDay: optionalDay,
+    creditLimit: optionalMoney,
+    statementDay: optionalDay,
+    cardDueDay: optionalDay,
+  })
+  .superRefine((d, ctx) => {
+    if (d.debtType !== "tarjeta_credito") return;
+    if (!d.creditLimit || d.creditLimit === "0.00") ctx.addIssue({ code: "custom", path: ["creditLimit"], message: "Escribe el límite de crédito." });
+    if (!d.statementDay) ctx.addIssue({ code: "custom", path: ["statementDay"], message: "Escribe el día de corte." });
+    if (!d.cardDueDay) ctx.addIssue({ code: "custom", path: ["cardDueDay"], message: "Escribe el día límite de pago." });
+    if (d.statementDay && d.cardDueDay && d.statementDay === d.cardDueDay) {
+      ctx.addIssue({ code: "custom", path: ["cardDueDay"], message: "El día límite de pago no puede ser el mismo que el de corte." });
+    }
+  });
+
+export const debtSettingsSchema = z.object({
+  id: requiredId,
+  annualRate: percentField,
+  minimumPayment: optionalMoney,
+  fixedPayment: optionalMoney,
+  paymentDueDay: optionalDay,
+});
+
+export const cardSettingsSchema = z
+  .object({
+    cardId: requiredId,
+    creditLimit: moneyField(),
+    statementDay: dayField("Día de corte del 1 al 31."),
+    cardDueDay: dayField("Día límite del 1 al 31."),
+  })
+  .refine((d) => d.statementDay !== d.cardDueDay, { path: ["cardDueDay"], message: "No puede ser igual al día de corte." });
+
+export const cycleSchema = z
+  .object({
+    debtId: requiredId,
+    cardId: requiredId,
+    periodStart: dateField,
+    statementDate: dateField,
+    paymentDueDate: dateField,
+    statementBalance: moneyField({ allowZero: true }),
+    minimumPayment: moneyField({ allowZero: true }),
+    noInterestPayment: moneyField({ allowZero: true }),
+    interestCharged: optionalMoney,
+    feesCharged: optionalMoney,
+  })
+  .superRefine((d, ctx) => {
+    if (d.statementDate < d.periodStart) {
+      ctx.addIssue({ code: "custom", path: ["statementDate"], message: "La fecha de corte no puede ser antes del inicio del periodo." });
+    }
+    if (d.paymentDueDate <= d.statementDate) {
+      ctx.addIssue({ code: "custom", path: ["paymentDueDate"], message: "La fecha límite de pago debe ser posterior a la fecha de corte." });
+    }
+    if (Number(d.minimumPayment) > Number(d.noInterestPayment)) {
+      ctx.addIssue({ code: "custom", path: ["minimumPayment"], message: "El pago mínimo no puede ser mayor que el pago para no generar intereses." });
+    }
+  });
+
+export const payDebtSchema = z.object({
+  debtId: requiredId,
+  amount: moneyField(),
+  paidOn: dateField,
+  accountId: optionalId,
+  cycleId: optionalId,
+});
+
+export const debtChargeSchema = z.object({
+  debtId: requiredId,
+  kind: z.enum(["interes", "comision"], { error: "Elige el tipo de cargo." }),
+  amount: moneyField(),
+  occurredOn: dateField,
+  notes: shortText(300),
+});
+
+export const cardPurchaseSchema = z.object({
+  debtId: requiredId,
+  amount: moneyField(),
+  occurredOn: dateField,
+  categoryId: requiredId,
+  description: shortText(300),
+});
+
+export const correctBalanceSchema = z.object({
+  debtId: requiredId,
+  newBalance: moneyField({ allowZero: true }),
+});
+
+/** Origen del pago de un gasto: cuenta, tarjeta de crédito ("card:<id>") o ninguno. */
+export const paymentSourceField = z
+  .string()
+  .optional()
+  .transform((v) => (v ? v : null))
+  .refine((v) => v === null || z.uuid().safeParse(v.replace(/^card:/, "")).success, "Opción inválida.")
+  .transform((v) =>
+    v === null ? { accountId: null, cardDebtId: null }
+      : v.startsWith("card:") ? { accountId: null, cardDebtId: v.slice(5) }
+      : { accountId: v, cardDebtId: null });
 
 /** Devuelve solo rutas internas seguras para redirigir después del login. */
 export function safeNextPath(value: FormDataEntryValue | string | null | undefined): string {

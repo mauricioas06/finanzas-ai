@@ -76,4 +76,46 @@ Fuente de verdad para retomar el trabajo. Se actualiza al cerrar cada fase.
 * Gráficas de evolución del patrimonio, deudas, metas y portafolio → Fases 3, 5 y 6.
 * "Leaked password protection" de Supabase Auth (asesor de seguridad) → revisar en Fase 8.
 
-**Siguiente:** Fase 3 (deudas, tarjetas y calendario).
+## Fase 3 — Deudas, tarjetas y calendario (18/11/2026)
+
+**Decisión clave:** pagar una tarjeta o préstamo es un movimiento `pago_deuda`: sale dinero de la
+cuenta pero **no** cuenta como gasto, porque el gasto ya se contó al comprar. Así nada se cuenta dos veces.
+
+**Construido**
+
+* Migración 0009: tipo `pago_deuda`; saldo de cada deuda ajustado solo por sus movimientos (abono baja;
+  compra, interés y comisión suben; ajuste ±); estado `liquidada` automático al llegar a cero; borrar un
+  pago o compra revierte también la deuda; funciones atómicas `pay_debt` y `card_purchase`; alertas
+  `sync_payment_alerts` (7, 3 y 1 día antes y el día del vencimiento; una sola vez por umbral).
+* **Deudas:** alta de tarjetas (límite, día de corte, día límite) y préstamos (pago fijo, día de pago);
+  resumen, uso de crédito, próximo pago por deuda; comparación **solo mínimos / avalancha / bola de nieve**
+  con meses para liquidar, intereses totales, orden y cuánto separar por quincena.
+* **Detalle de deuda:** estados de cuenta (fecha de corte ≠ fecha límite; pago mínimo ≠ pago para no generar
+  intereses) con fechas sugeridas que el usuario confirma; registrar pago (desde una cuenta y a un estado de
+  cuenta), compra con tarjeta, interés o comisión, corregir saldo, historial y borrado con confirmación.
+* **Gastos:** ahora se puede pagar con tarjeta de crédito (sube su deuda y cuenta como gasto).
+* **Calendario:** cuadrícula mensual (agenda en teléfono) con cortes, fechas límite, préstamos, recurrentes e
+  ingresos previstos; fechas estimadas marcadas con borde punteado y sin montos inventados; panel
+  **PRÓXIMOS PAGOS** (deuda, institución, importe, fecha límite, estado: pendiente, parcial, pagado, vencido);
+  panel de alertas con "marcar como leídas"; campana con contador en la barra superior.
+* **Dashboard:** deudas pendientes, patrimonio neto real (cuentas − deudas), comprometido con pagos de deudas,
+  pagos a deudas aparte de los gastos, gráfica de evolución de las deudas y acciones del día con pagos de
+  tarjetas (pago sin intereses y mínimo) y aviso para capturar estados de cuenta.
+
+**Pruebas**
+
+* `npm test`: 88 de 88 (nuevas: estrategias, fechas de corte y límite, estados de pago, próximos pagos,
+  calendario, cuánto separar por quincena, pagos y compras atómicos, sobrepago bloqueado, alertas
+  idempotentes y aisladas, notificaciones de solo lectura).
+* Supabase real (transacción que se deshace): deuda 3,200.25; cuenta 9,700.00; gasto del mes solo la compra
+  (500.25); pago a deuda aparte (300.00); pagar el mínimo no marca el estado como pagado; sobrepago bloqueado;
+  alerta "En 2 días vence" creada una sola vez.
+* `typecheck`, `lint`, `build`: sin errores.
+
+**Notas**
+
+* El asesor de Supabase avisa que `sync_payment_alerts` es SECURITY DEFINER ejecutable por usuarios. Es
+  intencional: no recibe parámetros y solo crea alertas para quien la llama a partir de sus propios datos.
+* El estado "Dinero apartado" de Próximos pagos llega con los apartados (Fase 4). Avisos por correo: Fase 8.
+
+**Siguiente:** Fase 4 ("RECIBÍ DINERO", motor de distribución y apartados).

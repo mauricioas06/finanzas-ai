@@ -46,6 +46,16 @@ export function monthLabel(key: string, short = false): string {
   return short ? `${name.slice(0, 3)} ${String(y).slice(2)}` : `${name} ${y}`;
 }
 
+/** "1 año 3 meses", "8 meses". */
+export function formatDuration(months: number): string {
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  const parts = [];
+  if (y) parts.push(`${y} año${y === 1 ? "" : "s"}`);
+  if (m || !y) parts.push(`${m} mes${m === 1 ? "" : "es"}`);
+  return parts.join(" ");
+}
+
 /** Días de diferencia entre dos fechas ISO (b - a). */
 export function daysBetween(a: string, b: string): number {
   const toUtc = (s: string) => {

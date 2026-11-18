@@ -11,6 +11,17 @@ function refresh() {
 
 export async function recordExpense(_: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(expenseSchema, formData, async (d, { supabase, userId }) => {
+    if (d.cardDebtId) {
+      // Pagado con tarjeta de crédito: es gasto y además sube la deuda de la tarjeta.
+      const { error } = await supabase.rpc("card_purchase", {
+        p_debt_id: d.cardDebtId, p_amount: asNumeric(d.amount), p_occurred_on: d.occurredOn,
+        p_category_id: d.categoryId, p_description: d.description ?? undefined,
+      });
+      if (error) return failed("gasto-tarjeta", error);
+      refresh();
+      revalidatePath("/deudas");
+      return ok("Gasto registrado con tarjeta: la deuda de la tarjeta subió.");
+    }
     const { error } = await supabase.from("transactions").insert({
       user_id: userId,
       kind: "gasto",

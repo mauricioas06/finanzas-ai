@@ -29,6 +29,31 @@ export const FREQUENCY_LABEL: Record<string, string> = {
   variable: "Variable",
 };
 
+export const DEBT_TYPE_LABEL: Record<string, string> = {
+  tarjeta_credito: "Tarjeta de crédito",
+  prestamo_personal: "Préstamo personal",
+  financiamiento: "Financiamiento",
+  deuda_personal: "Deuda personal",
+  credito_automotriz: "Crédito automotriz",
+  hipotecario: "Crédito hipotecario",
+  otra: "Otra",
+};
+
+export const DEBT_MOVEMENT_LABEL: Record<string, string> = {
+  abono: "Pago",
+  compra: "Compra",
+  interes: "Interés",
+  comision: "Comisión",
+  ajuste: "Ajuste",
+};
+
+export const PAYMENT_STATE_LABEL: Record<string, string> = {
+  pendiente: "Pendiente",
+  parcial: "Pago parcial",
+  pagado: "Pagado",
+  vencido: "Vencido",
+};
+
 export function label(map: Record<string, string>, key: string | null | undefined): string {
   if (!key) return "—";
   return map[key] ?? key;

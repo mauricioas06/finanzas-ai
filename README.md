@@ -11,7 +11,7 @@ Hecho para México (español, MXN, DD/MM/AAAA, hora de la Ciudad de México).
 |---|---|---|
 | 1 | Arquitectura, base de datos, seguridad, registro e inicio de sesión, menú | ✅ Lista |
 | 2 | Dashboard, Mi dinero, ingresos y gastos | ✅ Lista |
-| 3 | Deudas, tarjetas y calendario | Pendiente |
+| 3 | Deudas, tarjetas y calendario | ✅ Lista |
 | 4 | "RECIBÍ DINERO" y apartados | Pendiente |
 | 5 | Metas y reportes | Pendiente |
 | 6 | Investment Intelligence y datos de mercado | Pendiente |

@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { formatMXN } from "@/lib/money";
 
@@ -85,6 +85,29 @@ export function DonutChart({ data, label }: { data: Array<{ name: string; value:
           <Tooltip formatter={(v) => formatMXN(Number(v))} {...tooltipStyle(p)} />
           <Legend iconType="circle" layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: 12, color: p["--muted"] }} />
         </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function TrendChart({ data, label, name }: { data: Array<{ label: string; value: number }>; label: string; name: string }) {
+  const p = usePalette();
+  return (
+    <div className="h-56 w-full" role="img" aria-label={label}>
+      <ResponsiveContainer>
+        <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={p["--negative"]} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={p["--negative"]} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} stroke={p["--line"]} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: p["--muted"], fontSize: 12 }} />
+          <YAxis tickLine={false} axisLine={false} width={52} tick={{ fill: p["--muted"], fontSize: 12 }} tickFormatter={mxnShort} />
+          <Tooltip formatter={(v) => formatMXN(Number(v))} {...tooltipStyle(p)} />
+          <Area type="monotone" dataKey="value" name={name} stroke={p["--negative"]} strokeWidth={2} fill="url(#trendFill)" />
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );

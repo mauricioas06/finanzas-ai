@@ -1554,6 +1554,7 @@ export type Database = {
     Views: {
       v_monthly_cashflow: {
         Row: {
+          debt_paid: number | null
           expense: number | null
           expense_count: number | null
           income: number | null
@@ -1583,8 +1584,36 @@ export type Database = {
       }
     }
     Functions: {
+      card_purchase: {
+        Args: {
+          p_amount: number
+          p_category_id: string
+          p_debt_id: string
+          p_description?: string
+          p_occurred_on: string
+        }
+        Returns: string
+      }
+      debt_movement_delta: {
+        Args: { amount: number; kind: string }
+        Returns: number
+      }
+      next_day_of_month: {
+        Args: { day_of_month: number; from_date: string }
+        Returns: string
+      }
       next_due_date: {
         Args: { cur: string; due_day: number; freq: string }
+        Returns: string
+      }
+      pay_debt: {
+        Args: {
+          p_account_id?: string
+          p_amount: number
+          p_billing_cycle_id?: string
+          p_debt_id: string
+          p_paid_on: string
+        }
         Returns: string
       }
       pay_recurring_expense: {
@@ -1596,6 +1625,8 @@ export type Database = {
         }
         Returns: string
       }
+      sync_payment_alerts: { Args: never; Returns: number }
+      today_mx: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never

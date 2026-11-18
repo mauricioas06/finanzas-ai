@@ -100,6 +100,32 @@ describe("¿Qué debo hacer hoy?", () => {
     expect(titles).toEqual(["cuentas", "ingreso", "perfil"]);
   });
 
+  it("incluye pagos de tarjetas con el pago sin intereses y el mínimo", async () => {
+    const { default: Decimal } = await import("decimal.js");
+    const [a, b] = buildTodayActions({
+      ...base,
+      debtPayments: [
+        { key: "c1", title: "Oro", date: "2026-11-20", amount: new Decimal("4800"), minimum: new Decimal("400"), state: "pendiente",
+          estimated: false, href: "/deudas/t1", note: "Pago para no generar intereses" },
+        { key: "t2", title: "Plata", date: "2026-12-25", amount: null, minimum: null, state: "pendiente",
+          estimated: true, href: "/deudas/t2", note: "Captura tu estado de cuenta después del corte del 05/12" },
+      ],
+    });
+    expect(a.title).toBe("Pagar Oro");
+    expect(a.detail).toBe("Vence en 2 días (20/11). Paga $4,800.00 para no generar intereses. Mínimo: $400.00.");
+    expect(a.priority).toBe(1);
+    expect(b).toBeUndefined(); // el corte del 05/12 aún no ocurre: todavía no hay que capturar nada
+  });
+
+  it("pide capturar el estado de cuenta cuando el corte ya ocurrió", async () => {
+    const [a] = buildTodayActions({
+      ...base,
+      debtPayments: [{ key: "t3", title: "Plata", date: "2026-11-25", amount: null, minimum: null, state: "pendiente",
+        estimated: true, href: "/deudas/t3", note: "Captura tu estado de cuenta del corte del 05/11" }],
+    });
+    expect(a).toMatchObject({ title: "Captura el estado de cuenta de Plata", priority: 3 });
+  });
+
   it("avisa de pagos vencidos", () => {
     const [a] = buildTodayActions({
       ...base,
