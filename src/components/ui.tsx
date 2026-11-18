@@ -16,8 +16,8 @@ export const buttonClass = {
 export const inputClass =
   "w-full rounded-xl border border-line bg-surface-2 px-3.5 py-2.5 text-sm text-fg placeholder:text-muted/70 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/25";
 
-export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={cn("rounded-2xl border border-line bg-surface p-5", className)}>{children}</section>;
+export function Card({ children, className, id }: { children: ReactNode; className?: string; id?: string }) {
+  return <section id={id} className={cn("rounded-2xl border border-line bg-surface p-5", className)}>{children}</section>;
 }
 
 export function PageHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {

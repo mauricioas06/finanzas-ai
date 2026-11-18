@@ -35,6 +35,14 @@ export function parseMoneyInput(raw: string): Decimal | null {
   return money(cleaned.replace(/,/g, ""));
 }
 
+/**
+ * PostgREST acepta texto para columnas numeric, así que el monto viaja como
+ * "1234.56" exacto. El tipo generado dice number; este puente lo documenta.
+ */
+export function asNumeric(dbAmount: string): number {
+  return dbAmount as unknown as number;
+}
+
 const mxn = new Intl.NumberFormat("es-MX", {
   style: "currency",
   currency: "MXN",

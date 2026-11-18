@@ -1552,10 +1552,50 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_monthly_cashflow: {
+        Row: {
+          expense: number | null
+          expense_count: number | null
+          income: number | null
+          income_count: number | null
+          month: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      v_monthly_category_spend: {
+        Row: {
+          category_id: string | null
+          month: string | null
+          total: number | null
+          tx_count: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_category_id_user_id_fkey"
+            columns: ["category_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      next_due_date: {
+        Args: { cur: string; due_day: number; freq: string }
+        Returns: string
+      }
+      pay_recurring_expense: {
+        Args: {
+          p_account_id?: string
+          p_amount: number
+          p_paid_on: string
+          p_recurring_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,6 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
 import type { Database } from "./database.types";
 
@@ -23,10 +24,13 @@ export async function createClient() {
   });
 }
 
-/** Usuario validado contra Supabase Auth (no solo leído de la cookie). */
-export async function getCurrentUser() {
+/**
+ * Usuario validado contra Supabase Auth (no solo leído de la cookie).
+ * `cache` lo consulta una sola vez por petición aunque varias partes lo pidan.
+ */
+export const getCurrentUser = cache(async () => {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return { supabase, user: null };
   return { supabase, user: data.user };
-}
+});
