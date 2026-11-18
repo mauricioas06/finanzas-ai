@@ -67,8 +67,8 @@ Fuente de verdad para retomar el trabajo. Se actualiza al cerrar cada fase.
   fecha 20/12/2026, sobregiro bloqueado.
 * `typecheck`, `lint`, `build`: sin errores.
 
-**No verificado por Claude:** las pantallas con sesión iniciada en el navegador (requieren la cuenta
-del usuario). Lo prueba el usuario en línea.
+* Prueba del usuario en línea (18/11/2026): cuenta, ingreso, gasto, presupuesto y dashboard
+  funcionaron como se esperaba.
 
 **Pendiente para fases siguientes**
 
