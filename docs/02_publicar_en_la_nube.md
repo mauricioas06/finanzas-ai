@@ -5,8 +5,11 @@ Objetivo: una dirección como `https://finanzas-ai.vercel.app` que puedas compar
 | Pieza | Servicio | Estado |
 |---|---|---|
 | Base de datos y cuentas de usuario | Supabase | ✅ Lista (proyecto `finanzas-ai`) |
-| Código | GitHub | Falta tu cuenta |
-| Página web | Vercel | Falta tu cuenta |
+| Código | GitHub | ✅ `mauricioas06/finanzas-ai` (privado) |
+| Página web | Vercel | ✅ https://finanzas-ai-seven.vercel.app |
+
+Estado al 18/11/2026: todo publicado y probado con un registro real. Los pasos siguientes quedan
+como referencia por si hay que repetirlos.
 
 ## Paso 1. Crear las cuentas (lo haces tú)
 

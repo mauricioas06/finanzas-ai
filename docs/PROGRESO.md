@@ -27,8 +27,16 @@ Fuente de verdad para retomar el trabajo. Se actualiza al cerrar cada fase.
   precisión decimal, auditoría, formato MXN y fechas en hora de la Ciudad de México.
 * `npm run typecheck`, `npm run lint` y `npm run build`: sin errores.
 
-**Pendiente del usuario**
+**En línea**
 
-* Crear cuentas de GitHub y Vercel para publicar la página (`docs/02_publicar_en_la_nube.md`).
+* Página pública: https://finanzas-ai-seven.vercel.app (Vercel, proyecto en el equipo "Mau Proyectos").
+* Código: https://github.com/mauricioas06/finanzas-ai (privado). Cada `git push` a `main` vuelve a publicar.
+* Supabase Auth: Site URL y Redirect URLs apuntan a la página de Vercel y a localhost.
+* Probado en línea el 18/11/2026: registro real, correo de confirmación, entrada al dashboard;
+  la base creó perfil, plan gratuito, aceptación de privacidad y 9 categorías.
+
+**Pendiente**
+
+* Correo propio (SMTP, por ejemplo Resend) para no depender del límite de envíos de Supabase gratis (Fase 8).
 
 **Siguiente:** Fase 2 (Dashboard real, Mi dinero, ingresos y gastos).
