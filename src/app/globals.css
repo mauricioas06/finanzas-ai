@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+/* Modo oscuro por clase en <html>. Es el modo principal; el claro es opcional. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-2: #eef2f8;
+  --line: #dde3ee;
+  --fg: #0d1526;
+  --muted: #5b6880;
+  --positive: #15803d;
+  --negative: #dc2626;
+  --info: #2563eb;
+  --brand: #059669;
+  --brand-fg: #ffffff;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #060a14;
+  --surface: #0d1422;
+  --surface-2: #131c2e;
+  --line: #1e293d;
+  --fg: #eef2f8;
+  --muted: #8d9ab3;
+  --positive: #22c55e;
+  --negative: #f05252;
+  --info: #4c8dff;
+  --brand: #34d399;
+  --brand-fg: #04140d;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-info: var(--info);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1, "cv11" 1;
+}
+
+/* Cifras alineadas en tablas y tarjetas de dinero. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
