@@ -111,6 +111,8 @@ cuenta pero **no** cuenta como gasto, porque el gasto ya se contó al comprar. A
   (500.25); pago a deuda aparte (300.00); pagar el mínimo no marca el estado como pagado; sobrepago bloqueado;
   alerta "En 2 días vence" creada una sola vez.
 * `typecheck`, `lint`, `build`: sin errores.
+* Prueba del usuario en línea (18/11/2026): tarjeta, estado de cuenta, pago parcial, gasto con tarjeta,
+  calendario, campana y dashboard funcionaron como se esperaba.
 
 **Notas**
 
